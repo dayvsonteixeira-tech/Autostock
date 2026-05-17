@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoStock — Controle de Peças</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222222;
+    --border: #2e2e2e;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f0;
+    --muted: #888;
+    --danger: #ff4444;
+    --success: #47ff8a;
+    --warn: #ffaa00;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px; position: sticky; top: 0; background: var(--bg); z-index: 100;
+  }
+  .logo { font-family: 'Space Mono', monospace; font-size: 18px; letter-spacing: -1px; }
+  .logo span { color: var(--accent); }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* LAYOUT */
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 60px); }
+  .sidebar { border-right: 1px solid var(--border); padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 4px; }
+  .main { padding: 2rem; overflow-y: auto; }
+
+  /* NAV */
+  .nav-item {
+    padding: 10px 12px; border-radius: var(--radius); cursor: pointer;
+    display: flex; align-items: center; gap: 10px; font-size: 14px;
+    color: var(--muted); transition: all 0.15s; border: none; background: none; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--surface); color: var(--text); }
+  .nav-item.active { background: var(--surface); color: var(--accent); }
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-section { font-size: 11px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; padding: 12px 12px 4px; margin-top: 8px; }
+
+  /* METRICS */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 2rem; }
+  .metric-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1.2rem;
+  }
+  .metric-card.accent { border-color: var(--accent); background: #1a1e0f; }
+  .metric-card.danger { border-color: var(--danger); background: #1e0f0f; }
+  .metric-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .metric-value { font-family: 'Space Mono', monospace; font-size: 28px; font-weight: 700; }
+  .metric-value.accent { color: var(--accent); }
+  .metric-value.danger { color: var(--danger); }
+  .metric-value.warn { color: var(--warn); }
+  .metric-value.success { color: var(--success); }
+
+  /* BUTTONS */
+  .btn {
+    padding: 9px 18px; border-radius: var(--radius); border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: #0f0f0f; }
+  .btn-primary:hover { background: #d4e83e; }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  .btn-danger:hover { background: rgba(255,68,68,0.1); }
+  .btn-sm { padding: 5px 12px; font-size: 13px; }
+  .btn-icon { padding: 7px; }
+
+  /* TABLE */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .table-header { padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+  .table-title { font-weight: 600; font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: 10px 16px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); font-weight: 500; }
+  td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid #1e1e1e; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* BADGES */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  .badge-ok { background: rgba(71,255,138,0.12); color: var(--success); }
+  .badge-low { background: rgba(255,170,0,0.12); color: var(--warn); }
+  .badge-critical { background: rgba(255,68,68,0.12); color: var(--danger); }
+  .badge-cat { background: var(--surface2); color: var(--muted); font-family: 'Space Mono', monospace; font-size: 11px; }
+
+  /* CODE */
+  .code { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--accent); background: rgba(232,255,71,0.08); padding: 2px 7px; border-radius: 4px; }
+
+  /* SEARCH / FILTER */
+  .filters { display: flex; gap: 10px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  input[type="text"], select {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); padding: 9px 14px; font-size: 14px; font-family: 'DM Sans', sans-serif;
+    outline: none; transition: border-color 0.15s;
+  }
+  input[type="text"]:focus, select:focus { border-color: var(--accent); }
+  input[type="text"] { min-width: 240px; }
+  select { cursor: pointer; }
+
+  /* MODAL */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; }
+  .overlay.show { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  .modal-title { font-size: 18px; font-weight: 600; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="number"] {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); padding: 9px 14px; font-size: 14px; font-family: 'DM Sans', sans-serif;
+    outline: none; width: 100%; transition: border-color 0.15s;
+  }
+  input[type="number"]:focus { border-color: var(--accent); }
+  .form-grid input[type="text"], .form-grid select { background: var(--surface2); width: 100%; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.5rem; }
+
+  /* MOVIMENTO MODAL */
+  .mov-tipo { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .mov-btn { flex: 1; padding: 10px; border-radius: var(--radius); border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-family: 'DM Sans'; font-size: 14px; font-weight: 500; transition: all 0.15s; }
+  .mov-btn.entry.active { border-color: var(--success); color: var(--success); background: rgba(71,255,138,0.08); }
+  .mov-btn.exit.active { border-color: var(--danger); color: var(--danger); background: rgba(255,68,68,0.08); }
+
+  /* TOAST */
+  .toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+  .toast { padding: 12px 18px; border-radius: var(--radius); font-size: 14px; border-left: 3px solid; animation: slideIn 0.3s ease; }
+  .toast.success { background: #0f1e14; border-color: var(--success); color: var(--success); }
+  .toast.error { background: #1e0f0f; border-color: var(--danger); color: var(--danger); }
+  .toast.info { background: #0f1318; border-color: var(--accent); color: var(--accent); }
+  @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  /* HISTÓRIO */
+  .hist-item { display: flex; gap: 16px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .hist-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .hist-dot.entry { background: var(--success); }
+  .hist-dot.exit { background: var(--danger); }
+  .hist-info { flex: 1; }
+  .hist-main { font-size: 14px; font-weight: 500; margin-bottom: 3px; }
+  .hist-sub { font-size: 12px; color: var(--muted); }
+  .hist-qty { font-family: 'Space Mono', monospace; font-size: 15px; font-weight: 700; }
+  .hist-qty.entry { color: var(--success); }
+  .hist-qty.exit { color: var(--danger); }
+
+  /* EMPTY */
+  .empty { text-align: center; padding: 3rem; color: var(--muted); }
+  .empty-icon { font-size: 40px; margin-bottom: 1rem; }
+
+  /* VIEWS */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* PAGE TITLE */
+  .page-title { font-size: 22px; font-weight: 600; margin-bottom: 0.25rem; }
+  .page-sub { color: var(--muted); font-size: 14px; margin-bottom: 1.5rem; }
+
+  /* LOC BADGE */
+  .loc { font-size: 12px; color: var(--muted); font-family: 'Space Mono'; }
+
+  /* PROGRESS BAR */
+  .qty-bar { display: flex; align-items: center; gap: 10px; }
+  .bar-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; min-width: 60px; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+
+  .action-btns { display: flex; gap: 6px; }
+
+  @media (max-width: 700px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">AUTO<span>STOCK</span></div>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <button class="btn btn-primary btn-sm" onclick="openModal('add')">+ Nova Peça</button>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <button class="nav-item active" onclick="showView('dashboard', this)">
+      <span class="nav-icon">▦</span> Dashboard
+    </button>
+    <button class="nav-item" onclick="showView('estoque', this)">
+      <span class="nav-icon">⊟</span> Estoque
+    </button>
+    <button class="nav-item" onclick="showView('historico', this)">
+      <span class="nav-icon">↺</span> Histórico
+    </button>
+    <div class="nav-section">Filtrar por</div>
+    <button class="nav-item" onclick="filtrarCategoria('Motor')">Motor</button>
+    <button class="nav-item" onclick="filtrarCategoria('Freios')">Freios</button>
+    <button class="nav-item" onclick="filtrarCategoria('Suspensão')">Suspensão</button>
+    <button class="nav-item" onclick="filtrarCategoria('Elétrica')">Elétrica</button>
+    <button class="nav-item" onclick="filtrarCategoria('Filtros')">Filtros</button>
+    <button class="nav-item" onclick="filtrarCategoria('Transmissão')">Transmissão</button>
+    <button class="nav-item" onclick="filtrarCategoria('')">Ver tudo</button>
+  </aside>
+
+  <main class="main">
+    <!-- DASHBOARD -->
+    <div id="view-dashboard" class="view active">
+      <p class="page-title">Dashboard</p>
+      <p class="page-sub" id="dash-date"></p>
+      <div class="metrics" id="metrics"></div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">⚠ Estoque Crítico</span>
+          <span style="font-size:13px; color:var(--muted)">Itens abaixo do mínimo</span>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Código</th><th>Peça</th><th>Categoria</th><th>Qtd</th><th>Mínimo</th><th>Ação</th>
+          </tr></thead>
+          <tbody id="critical-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ESTOQUE -->
+    <div id="view-estoque" class="view">
+      <p class="page-title">Estoque de Peças</p>
+      <p class="page-sub">Gerencie o inventário completo de peças automotivas</p>
+      <div class="filters">
+        <input type="text" id="search" placeholder="🔍  Buscar por nome, código ou veículo..." oninput="renderTable()">
+        <select id="filter-cat" onchange="renderTable()">
+          <option value="">Todas categorias</option>
+          <option>Motor</option><option>Freios</option><option>Suspensão</option>
+          <option>Elétrica</option><option>Filtros</option><option>Transmissão</option>
+        </select>
+        <select id="filter-status" onchange="renderTable()">
+          <option value="">Todos status</option>
+          <option value="ok">OK</option>
+          <option value="low">Baixo</option>
+          <option value="critical">Crítico</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">Peças cadastradas</span>
+          <span id="count-label" style="font-size:13px; color:var(--muted)"></span>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Código</th><th>Peça</th><th>Categoria</th><th>Veículo</th><th>Local</th><th>Fornecedor</th><th>Quantidade</th><th>Status</th><th>Ações</th>
+          </tr></thead>
+          <tbody id="stock-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div id="view-historico" class="view">
+      <p class="page-title">Histórico de Movimentações</p>
+      <p class="page-sub">Registro de todas as entradas e saídas</p>
+      <div id="historico-list"></div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL ADD/EDIT -->
+<div class="overlay" id="modal-add">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-add-title">Nova Peça</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('add')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Código de Referência *</label>
+        <input type="text" id="f-codigo" placeholder="Ex: BP-1234">
+      </div>
+      <div class="form-group">
+        <label>Categoria *</label>
+        <select id="f-categoria">
+          <option>Motor</option><option>Freios</option><option>Suspensão</option>
+          <option>Elétrica</option><option>Filtros</option><option>Transmissão</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Nome da Peça *</label>
+        <input type="text" id="f-nome" placeholder="Ex: Pastilha de freio dianteira">
+      </div>
+      <div class="form-group">
+        <label>Compatibilidade (Veículo)</label>
+        <input type="text" id="f-veiculo" placeholder="Ex: Gol G5 / Universal">
+      </div>
+      <div class="form-group">
+        <label>Fornecedor</label>
+        <input type="text" id="f-fornecedor" placeholder="Ex: Bosch, Nakata">
+      </div>
+      <div class="form-group">
+        <label>Localização na prateleira</label>
+        <input type="text" id="f-local" placeholder="Ex: A-12 / Galpão 2">
+      </div>
+      <div class="form-group">
+        <label>Quantidade inicial *</label>
+        <input type="number" id="f-qty" min="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Estoque mínimo</label>
+        <input type="number" id="f-min" min="0" placeholder="5">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('add')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePeca()">Salvar Peça</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MOVIMENTO -->
+<div class="overlay" id="modal-mov">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">
+      <span id="mov-peca-nome">Movimentação</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('mov')">✕</button>
+    </div>
+    <div class="mov-tipo">
+      <button class="mov-btn entry active" id="btn-entry" onclick="setTipo('entry')">↑ Entrada</button>
+      <button class="mov-btn exit" id="btn-exit" onclick="setTipo('exit')">↓ Saída</button>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>Quantidade</label>
+      <input type="number" id="mov-qty" min="1" value="1" style="width:100%">
+    </div>
+    <div class="form-group">
+      <label>Motivo / Observação</label>
+      <input type="text" id="mov-motivo" placeholder="Ex: Compra NF 1234 / Aplicação OS 567">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('mov')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveMovimento()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const STORAGE_KEY = 'autostock_pecas';
+const HIST_KEY = 'autostock_hist';
+
+let pecas = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let historico = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+let editId = null;
+let movId = null;
+let movTipo = 'entry';
+
+if (pecas.length === 0) {
+  pecas = [
+    { id: 1, codigo:'BP-0421', nome:'Pastilha de freio dianteira', categoria:'Freios', veiculo:'Gol G5/G6', fornecedor:'Bosch', local:'A-03', qty:24, min:10 },
+    { id: 2, codigo:'FO-1100', nome:'Filtro de óleo', categoria:'Filtros', veiculo:'Universal', fornecedor:'Mann', local:'B-01', qty:8, min:15 },
+    { id: 3, codigo:'AM-3310', nome:'Amortecedor dianteiro', categoria:'Suspensão', veiculo:'Civic 2016-2021', fornecedor:'Nakata', local:'C-07', qty:4, min:4 },
+    { id: 4, codigo:'CO-2201', nome:'Correia dentada', categoria:'Motor', veiculo:'HB20 1.6', fornecedor:'Gates', local:'A-12', qty:12, min:6 },
+    { id: 5, codigo:'BA-5050', nome:'Bateria 60Ah', categoria:'Elétrica', veiculo:'Universal', fornecedor:'Moura', local:'D-01', qty:3, min:5 },
+    { id: 6, codigo:'DI-0088', nome:'Disco de freio dianteiro', categoria:'Freios', veiculo:'Onix 2020+', fornecedor:'Fremax', local:'A-05', qty:16, min:8 },
+    { id: 7, codigo:'VE-1402', nome:'Vela de ignição', categoria:'Motor', veiculo:'Universal', fornecedor:'NGK', local:'B-04', qty:48, min:20 },
+    { id: 8, codigo:'RC-0330', nome:'Rolamento de roda dianteiro', categoria:'Suspensão', veiculo:'Palio / Uno', fornecedor:'FAG', local:'C-02', qty:2, min:4 },
+  ];
+  save();
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(pecas));
+  localStorage.setItem(HIST_KEY, JSON.stringify(historico));
+}
+
+function nextId() { return pecas.length ? Math.max(...pecas.map(p=>p.id)) + 1 : 1; }
+
+function statusOf(p) {
+  if (p.qty <= 0) return 'critical';
+  if (p.qty <= p.min) return p.qty < p.min ? 'low' : 'ok';
+  return p.qty <= p.min * 1.5 ? 'low' : 'ok';
+}
+
+function statusBadge(p) {
+  const s = statusOf(p);
+  if (s === 'critical') return '<span class="badge badge-critical">Crítico</span>';
+  if (s === 'low') return '<span class="badge badge-low">Baixo</span>';
+  return '<span class="badge badge-ok">OK</span>';
+}
+
+function qtyBar(p) {
+  const pct = p.min > 0 ? Math.min(100, Math.round((p.qty / (p.min * 2)) * 100)) : 100;
+  const color = p.qty <= 0 ? '#ff4444' : p.qty < p.min ? '#ffaa00' : '#47ff8a';
+  return `<div class="qty-bar">
+    <span style="font-family:'Space Mono';font-size:14px;font-weight:700">${p.qty}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+  </div>`;
+}
+
+// VIEWS
+function showView(name, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'estoque') renderTable();
+  if (name === 'historico') renderHistorico();
+}
+
+function filtrarCategoria(cat) {
+  showView('estoque', null);
+  document.getElementById('filter-cat').value = cat;
+  renderTable();
+}
+
+// DASHBOARD
+function renderDashboard() {
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  const total = pecas.length;
+  const critical = pecas.filter(p => statusOf(p) === 'critical').length;
+  const low = pecas.filter(p => statusOf(p) === 'low').length;
+  const totalQty = pecas.reduce((a,p) => a + p.qty, 0);
+
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric-card accent">
+      <div class="metric-label">Total de Itens</div>
+      <div class="metric-value accent">${total}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Unidades em Estoque</div>
+      <div class="metric-value">${totalQty}</div>
+    </div>
+    <div class="metric-card ${low > 0 ? '' : ''}">
+      <div class="metric-label">Estoque Baixo</div>
+      <div class="metric-value warn">${low}</div>
+    </div>
+    <div class="metric-card ${critical > 0 ? 'danger' : ''}">
+      <div class="metric-label">Crítico / Zerado</div>
+      <div class="metric-value danger">${critical}</div>
+    </div>
+  `;
+
+  const criticalPecas = pecas.filter(p => statusOf(p) !== 'ok');
+  const tbody = document.getElementById('critical-table');
+  if (criticalPecas.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">✓ Nenhum item em estado crítico</td></tr>`;
+  } else {
+    tbody.innerHTML = criticalPecas.map(p => `
+      <tr>
+        <td><span class="code">${p.codigo}</span></td>
+        <td style="font-weight:500">${p.nome}</td>
+        <td><span class="badge badge-cat">${p.categoria}</span></td>
+        <td style="font-family:'Space Mono';color:${p.qty<=0?'var(--danger)':'var(--warn)'}">${p.qty}</td>
+        <td style="color:var(--muted)">${p.min}</td>
+        <td><button class="btn btn-primary btn-sm" onclick="openMov(${p.id})">+ Entrada</button></td>
+      </tr>
+    `).join('');
+  }
+}
+
+// TABLE
+function renderTable() {
+  const q = (document.getElementById('search')?.value || '').toLowerCase();
+  const cat = document.getElementById('filter-cat')?.value || '';
+  const status = document.getElementById('filter-status')?.value || '';
+
+  let filtered = pecas.filter(p => {
+    const matchQ = !q || p.nome.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q) || (p.veiculo||'').toLowerCase().includes(q);
+    const matchC = !cat || p.categoria === cat;
+    const matchS = !status || statusOf(p) === status;
+    return matchQ && matchC && matchS;
+  });
+
+  document.getElementById('count-label').textContent = `${filtered.length} de ${pecas.length} itens`;
+
+  const tbody = document.getElementById('stock-table');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="empty"><div class="empty-icon">⊟</div>Nenhuma peça encontrada</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => `
+    <tr>
+      <td><span class="code">${p.codigo}</span></td>
+      <td style="font-weight:500;max-width:180px">${p.nome}</td>
+      <td><span class="badge badge-cat">${p.categoria}</span></td>
+      <td style="font-size:13px;color:var(--muted)">${p.veiculo||'—'}</td>
+      <td><span class="loc">${p.local||'—'}</span></td>
+      <td style="font-size:13px;color:var(--muted)">${p.fornecedor||'—'}</td>
+      <td>${qtyBar(p)}</td>
+      <td>${statusBadge(p)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn btn-ghost btn-sm" onclick="openMov(${p.id})">↕</button>
+          <button class="btn btn-ghost btn-sm" onclick="editPeca(${p.id})">✎</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePeca(${p.id})">✕</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// HISTÓRICO
+function renderHistorico() {
+  const el = document.getElementById('historico-list');
+  if (historico.length === 0) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">↺</div>Nenhuma movimentação registrada ainda</div>`;
+    return;
+  }
+  el.innerHTML = [...historico].reverse().map(h => `
+    <div class="hist-item">
+      <div class="hist-dot ${h.tipo}"></div>
+      <div class="hist-info">
+        <div class="hist-main">${h.nome} <span class="code">${h.codigo}</span></div>
+        <div class="hist-sub">${h.motivo || 'Sem observação'} · ${h.data}</div>
+      </div>
+      <div class="hist-qty ${h.tipo}">${h.tipo === 'entry' ? '+' : '−'}${h.qty}</div>
+    </div>
+  `).join('');
+}
+
+// MODAL ADD
+function openModal(name) {
+  editId = null;
+  document.getElementById('modal-add-title').textContent = 'Nova Peça';
+  ['codigo','nome','veiculo','fornecedor','local'].forEach(f => document.getElementById('f-'+f).value = '');
+  document.getElementById('f-qty').value = '';
+  document.getElementById('f-min').value = '';
+  document.getElementById('modal-add').classList.add('show');
+}
+
+function editPeca(id) {
+  const p = pecas.find(x => x.id === id);
+  if (!p) return;
+  editId = id;
+  document.getElementById('modal-add-title').textContent = 'Editar Peça';
+  document.getElementById('f-codigo').value = p.codigo;
+  document.getElementById('f-nome').value = p.nome;
+  document.getElementById('f-categoria').value = p.categoria;
+  document.getElementById('f-veiculo').value = p.veiculo || '';
+  document.getElementById('f-fornecedor').value = p.fornecedor || '';
+  document.getElementById('f-local').value = p.local || '';
+  document.getElementById('f-qty').value = p.qty;
+  document.getElementById('f-min').value = p.min;
+  document.getElementById('modal-add').classList.add('show');
+}
+
+function savePeca() {
+  const codigo = document.getElementById('f-codigo').value.trim();
+  const nome = document.getElementById('f-nome').value.trim();
+  const qty = parseInt(document.getElementById('f-qty').value) || 0;
+  if (!codigo || !nome) { toast('Preencha código e nome da peça', 'error'); return; }
+
+  const data = {
+    codigo, nome,
+    categoria: document.getElementById('f-categoria').value,
+    veiculo: document.getElementById('f-veiculo').value.trim(),
+    fornecedor: document.getElementById('f-fornecedor').value.trim(),
+    local: document.getElementById('f-local').value.trim(),
+    qty,
+    min: parseInt(document.getElementById('f-min').value) || 0
+  };
+
+  if (editId) {
+    const i = pecas.findIndex(p => p.id === editId);
+    pecas[i] = { ...pecas[i], ...data };
+    toast('Peça atualizada!', 'success');
+  } else {
+    if (pecas.find(p => p.codigo === codigo)) { toast('Código já cadastrado!', 'error'); return; }
+    pecas.push({ id: nextId(), ...data });
+    toast('Peça cadastrada!', 'success');
+  }
+  save(); closeModal('add'); renderTable(); renderDashboard();
+}
+
+function deletePeca(id) {
+  if (!confirm('Remover esta peça do estoque?')) return;
+  pecas = pecas.filter(p => p.id !== id);
+  save(); renderTable(); renderDashboard();
+  toast('Peça removida', 'info');
+}
+
+// MODAL MOVIMENTO
+function openMov(id) {
+  movId = id;
+  const p = pecas.find(x => x.id === id);
+  document.getElementById('mov-peca-nome').textContent = p.nome;
+  document.getElementById('mov-qty').value = 1;
+  document.getElementById('mov-motivo').value = '';
+  setTipo('entry');
+  document.getElementById('modal-mov').classList.add('show');
+}
+
+function setTipo(tipo) {
+  movTipo = tipo;
+  document.getElementById('btn-entry').classList.toggle('active', tipo === 'entry');
+  document.getElementById('btn-exit').classList.toggle('active', tipo === 'exit');
+}
+
+function saveMovimento() {
+  const qty = parseInt(document.getElementById('mov-qty').value) || 0;
+  if (qty <= 0) { toast('Informe uma quantidade válida', 'error'); return; }
+  const p = pecas.find(x => x.id === movId);
+  if (movTipo === 'exit' && qty > p.qty) { toast('Quantidade insuficiente em estoque!', 'error'); return; }
+  if (movTipo === 'entry') p.qty += qty; else p.qty -= qty;
+
+  historico.push({
+    id: Date.now(), tipo: movTipo,
+    nome: p.nome, codigo: p.codigo, qty,
+    motivo: document.getElementById('mov-motivo').value.trim(),
+    data: new Date().toLocaleString('pt-BR')
+  });
+
+  save(); closeModal('mov');
+  toast(movTipo === 'entry' ? `+${qty} unidades adicionadas` : `−${qty} unidades retiradas`, movTipo === 'entry' ? 'success' : 'info');
+  renderTable(); renderDashboard();
+}
+
+function closeModal(name) { document.getElementById('modal-'+name).classList.remove('show'); }
+
+// EXPORT CSV
+function exportCSV() {
+  const headers = ['Código','Nome','Categoria','Veículo','Fornecedor','Local','Quantidade','Estoque Mínimo','Status'];
+  const rows = pecas.map(p => [p.codigo, p.nome, p.categoria, p.veiculo||'', p.fornecedor||'', p.local||'', p.qty, p.min, statusOf(p) === 'ok' ? 'OK' : statusOf(p) === 'low' ? 'Baixo' : 'Crítico']);
+  const csv = [headers, ...rows].map(r => r.join(';')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `autostock_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  toast('CSV exportado com sucesso!', 'success');
+}
+
+// TOAST
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`; el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// INIT
+document.getElementById('dash-date') && renderDashboard();
+</script>
+</body>
+</html>
