@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoStock — Controle de Peças</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface2: #f0f1f3;
+    --border: #e2e4e9;
+    --border2: #d0d3db;
+    --accent: #2563eb;
+    --accent-light: #eff4ff;
+    --accent-text: #1d4ed8;
+    --text: #111827;
+    --text2: #374151;
+    --muted: #6b7280;
+    --muted2: #9ca3af;
+    --danger: #dc2626;
+    --danger-light: #fef2f2;
+    --danger-text: #b91c1c;
+    --success: #16a34a;
+    --success-light: #f0fdf4;
+    --success-text: #15803d;
+    --warn: #d97706;
+    --warn-light: #fffbeb;
+    --warn-text: #b45309;
+    --radius: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; min-height: 100vh; }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 58px; position: sticky; top: 0;
+    background: var(--surface); z-index: 100;
+    box-shadow: var(--shadow);
+  }
+  .logo { font-family: 'Space Mono', monospace; font-size: 17px; letter-spacing: -0.5px; color: var(--text); }
+  .logo span { color: var(--accent); }
+  .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .app { display: grid; grid-template-columns: 210px 1fr; min-height: calc(100vh - 58px); }
+  .sidebar { border-right: 1px solid var(--border); padding: 1.25rem 0.75rem; display: flex; flex-direction: column; gap: 2px; background: var(--surface); }
+  .main { padding: 1.75rem; overflow-y: auto; }
+
+  .nav-item {
+    padding: 9px 12px; border-radius: var(--radius); cursor: pointer;
+    display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500;
+    color: var(--muted); transition: all 0.15s; border: none; background: none; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--bg); color: var(--text2); }
+  .nav-item.active { background: var(--accent-light); color: var(--accent-text); }
+  .nav-section { font-size: 10px; color: var(--muted2); letter-spacing: 0.1em; text-transform: uppercase; padding: 14px 12px 4px; font-weight: 600; }
+
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1.75rem; }
+  .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; box-shadow: var(--shadow); }
+  .metric-card.accent { border-left: 3px solid var(--accent); }
+  .metric-card.danger { border-left: 3px solid var(--danger); background: var(--danger-light); }
+  .metric-card.warn { border-left: 3px solid var(--warn); background: var(--warn-light); }
+  .metric-card.success { border-left: 3px solid var(--success); background: var(--success-light); }
+  .metric-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+  .metric-value { font-family: 'Space Mono', monospace; font-size: 26px; font-weight: 700; color: var(--text); }
+  .metric-value.accent { color: var(--accent); }
+  .metric-value.danger { color: var(--danger-text); }
+  .metric-value.warn { color: var(--warn-text); }
+  .metric-value.success { color: var(--success-text); }
+
+  .btn {
+    padding: 8px 16px; border-radius: var(--radius); border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+  .btn-ghost:hover { background: var(--bg); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid #fca5a5; }
+  .btn-danger:hover { background: var(--danger-light); }
+  .btn-sm { padding: 5px 11px; font-size: 13px; }
+  .btn-icon { padding: 6px 8px; }
+
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+  .table-header { padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--border); background: var(--surface); }
+  .table-title { font-weight: 700; font-size: 15px; color: var(--text); }
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: 10px 14px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; border-bottom: 1px solid var(--border); font-weight: 700; background: #f8f9fb; }
+  td { padding: 13px 14px; font-size: 14px; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text2); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f5f7fa; }
+
+  .critical-row td { background: #fff5f5 !important; border-bottom-color: #fee2e2 !important; }
+  .critical-row:hover td { background: #fee2e2 !important; }
+  .low-row td { background: #fffdf0 !important; border-bottom-color: #fef3c7 !important; }
+  .low-row:hover td { background: #fef3c7 !important; }
+
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-ok { background: var(--success-light); color: var(--success-text); border: 1px solid #bbf7d0; }
+  .badge-low { background: var(--warn-light); color: var(--warn-text); border: 1px solid #fde68a; }
+  .badge-critical { background: var(--danger-light); color: var(--danger-text); border: 1px solid #fecaca; }
+  .badge-cat { background: var(--bg); color: var(--muted); border: 1px solid var(--border); font-family: 'Space Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 4px; }
+
+  .code { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--accent-text); background: var(--accent-light); padding: 2px 7px; border-radius: 4px; font-weight: 700; }
+
+  .qty-display { display: flex; align-items: center; gap: 10px; }
+  .qty-num { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 700; min-width: 32px; }
+  .qty-num.ok { color: var(--success-text); }
+  .qty-num.low { color: var(--warn-text); }
+  .qty-num.critical { color: var(--danger-text); }
+  .bar-track { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; min-width: 50px; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .bar-ok { background: var(--success); }
+  .bar-low { background: var(--warn); }
+  .bar-critical { background: var(--danger); }
+
+  .filters { display: flex; gap: 10px; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  input[type="text"], input[type="date"], select {
+    background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius);
+    color: var(--text); padding: 8px 13px; font-size: 14px; font-family: 'DM Sans', sans-serif;
+    outline: none; transition: border-color 0.15s; box-shadow: var(--shadow);
+  }
+  input[type="text"]:focus, input[type="date"]:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+  input[type="text"] { min-width: 220px; }
+  select { cursor: pointer; }
+
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 200; align-items: center; justify-content: center; }
+  .overlay.show { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.75rem; width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-md); }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; color: var(--text); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  input[type="number"] {
+    background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius);
+    color: var(--text); padding: 8px 13px; font-size: 14px; font-family: 'DM Sans', sans-serif;
+    outline: none; width: 100%; transition: all 0.15s; box-shadow: var(--shadow);
+  }
+  input[type="number"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+  .form-grid input[type="text"], .form-grid select { width: 100%; box-shadow: none; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+  .mov-tipo { display: flex; gap: 8px; margin-bottom: 1rem; }
+  .mov-btn { flex: 1; padding: 10px; border-radius: var(--radius); border: 1px solid var(--border2); background: var(--bg); color: var(--muted); cursor: pointer; font-family: 'DM Sans'; font-size: 14px; font-weight: 600; transition: all 0.15s; }
+  .mov-btn.entry.active { border-color: var(--success); color: var(--success-text); background: var(--success-light); }
+  .mov-btn.exit.active { border-color: var(--danger); color: var(--danger-text); background: var(--danger-light); }
+
+  .toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 999; }
+  .toast { padding: 12px 18px; border-radius: var(--radius); font-size: 14px; font-weight: 500; animation: slideIn 0.3s ease; box-shadow: var(--shadow-md); }
+  .toast.success { background: var(--success-light); border: 1px solid #bbf7d0; color: var(--success-text); }
+  .toast.error { background: var(--danger-light); border: 1px solid #fecaca; color: var(--danger-text); }
+  .toast.info { background: var(--accent-light); border: 1px solid #bfdbfe; color: var(--accent-text); }
+  @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  .hist-item { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .hist-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .hist-dot.entry { background: var(--success); }
+  .hist-dot.exit { background: var(--danger); }
+  .hist-info { flex: 1; }
+  .hist-main { font-size: 14px; font-weight: 600; margin-bottom: 3px; color: var(--text); }
+  .hist-sub { font-size: 12px; color: var(--muted); }
+  .hist-qty { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 700; }
+  .hist-qty.entry { color: var(--success-text); }
+  .hist-qty.exit { color: var(--danger-text); }
+
+  .empty { text-align: center; padding: 3rem; color: var(--muted2); }
+  .empty-icon { font-size: 36px; margin-bottom: 1rem; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .page-title { font-size: 20px; font-weight: 700; margin-bottom: 0.2rem; color: var(--text); }
+  .page-sub { color: var(--muted); font-size: 14px; margin-bottom: 1.5rem; }
+
+  .loc { font-size: 12px; color: var(--muted); font-family: 'Space Mono'; background: var(--bg); padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border); }
+  .action-btns { display: flex; gap: 5px; }
+
+  .critical-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); display: inline-block; animation: pulse 1.5s infinite; margin-right: 6px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  @media (max-width: 700px) {
+    .app { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .form-grid { grid-template-columns: 1fr; }
+    .main { padding: 1rem; }
+    header { padding: 0 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">AUTO<span>STOCK</span></div>
+  <div class="header-actions">
+    <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇ Exportar CSV</button>
+    <button class="btn btn-danger btn-sm" onclick="limparDados()">🗑 Limpar</button>
+    <button class="btn btn-primary btn-sm" onclick="openModal('add')">+ Nova Peça</button>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <button class="nav-item active" onclick="showView('dashboard', this)">▦ Dashboard</button>
+    <button class="nav-item" onclick="showView('estoque', this)">☰ Estoque</button>
+    <button class="nav-item" onclick="showView('historico', this)">↺ Histórico</button>
+    <button class="nav-item" onclick="showView('relatorio', this)">📊 Relatório</button>
+    <div class="nav-section">Categorias</div>
+    <button class="nav-item" onclick="filtrarCategoria('Motor')">🔧 Motor</button>
+    <button class="nav-item" onclick="filtrarCategoria('Freios')">🛑 Freios</button>
+    <button class="nav-item" onclick="filtrarCategoria('Suspensão')">🔩 Suspensão</button>
+    <button class="nav-item" onclick="filtrarCategoria('Elétrica')">⚡ Elétrica</button>
+    <button class="nav-item" onclick="filtrarCategoria('Filtros')">🌀 Filtros</button>
+    <button class="nav-item" onclick="filtrarCategoria('Transmissão')">⚙️ Transmissão</button>
+    <button class="nav-item" onclick="filtrarCategoria('')">Ver tudo</button>
+  </aside>
+
+  <main class="main">
+    <!-- DASHBOARD -->
+    <div id="view-dashboard" class="view active">
+      <p class="page-title">Dashboard</p>
+      <p class="page-sub" id="dash-date"></p>
+      <div class="metrics" id="metrics"></div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title"><span class="critical-dot"></span>Estoque Crítico e Baixo</span>
+          <span style="font-size:13px;color:var(--muted)">Itens que precisam de atenção</span>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Status</th><th>Código</th><th>Peça</th><th>Categoria</th><th>Qtd atual</th><th>Mínimo</th><th>Ação</th>
+          </tr></thead>
+          <tbody id="critical-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ESTOQUE -->
+    <div id="view-estoque" class="view">
+      <p class="page-title">Estoque de Peças</p>
+      <p class="page-sub">Gerencie o inventário completo de peças automotivas</p>
+      <div class="filters">
+        <input type="text" id="search" placeholder="🔍  Buscar nome, código ou veículo..." oninput="renderTable()">
+        <select id="filter-cat" onchange="renderTable()">
+          <option value="">Todas categorias</option>
+          <option>Motor</option><option>Freios</option><option>Suspensão</option>
+          <option>Elétrica</option><option>Filtros</option><option>Transmissão</option>
+        </select>
+        <select id="filter-status" onchange="renderTable()">
+          <option value="">Todos status</option>
+          <option value="ok">OK</option>
+          <option value="low">Baixo</option>
+          <option value="critical">Crítico</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <div class="table-header">
+          <span class="table-title">Peças cadastradas</span>
+          <span id="count-label" style="font-size:13px;color:var(--muted)"></span>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Código</th><th>Peça</th><th>Categoria</th><th>Veículo</th><th>Local</th><th>Fornecedor</th><th>Quantidade</th><th>Status</th><th>Ações</th>
+          </tr></thead>
+          <tbody id="stock-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- HISTÓRICO -->
+    <div id="view-historico" class="view">
+      <p class="page-title">Histórico de Movimentações</p>
+      <p class="page-sub">Registro de todas as entradas e saídas</p>
+      <div id="historico-list"></div>
+    </div>
+
+    <!-- RELATÓRIO -->
+    <div id="view-relatorio" class="view">
+      <p class="page-title">Relatório por Período</p>
+      <p class="page-sub">Analise as movimentações em um intervalo de datas</p>
+      <div class="filters">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;color:var(--muted);font-weight:500">De</span>
+          <input type="date" id="rel-inicio">
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;color:var(--muted);font-weight:500">Até</span>
+          <input type="date" id="rel-fim">
+        </div>
+        <select id="rel-tipo">
+          <option value="">Entradas e Saídas</option>
+          <option value="entry">Só Entradas</option>
+          <option value="exit">Só Saídas</option>
+        </select>
+        <button class="btn btn-primary" onclick="gerarRelatorio()">Gerar</button>
+        <button class="btn btn-ghost" onclick="exportarRelatorioCSV()">⬇ Exportar</button>
+      </div>
+      <div class="metrics" id="rel-metrics" style="margin-bottom:1.5rem"></div>
+      <div class="table-wrap" id="rel-table-wrap" style="display:none">
+        <div class="table-header">
+          <span class="table-title">Movimentações do período</span>
+          <span id="rel-count" style="font-size:13px;color:var(--muted)"></span>
+        </div>
+        <table>
+          <thead><tr><th>Data</th><th>Tipo</th><th>Peça</th><th>Código</th><th>Qtd</th><th>Motivo</th></tr></thead>
+          <tbody id="rel-tbody"></tbody>
+        </table>
+      </div>
+      <div id="rel-empty" class="empty" style="display:none">
+        <div class="empty-icon">📊</div>Nenhuma movimentação encontrada neste período
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL ADD/EDIT -->
+<div class="overlay" id="modal-add">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-add-title">Nova Peça</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('add')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Código *</label><input type="text" id="f-codigo" placeholder="Ex: BP-1234"></div>
+      <div class="form-group"><label>Categoria *</label>
+        <select id="f-categoria"><option>Motor</option><option>Freios</option><option>Suspensão</option><option>Elétrica</option><option>Filtros</option><option>Transmissão</option></select>
+      </div>
+      <div class="form-group full"><label>Nome da Peça *</label><input type="text" id="f-nome" placeholder="Ex: Pastilha de freio dianteira"></div>
+      <div class="form-group"><label>Veículo Compatível</label><input type="text" id="f-veiculo" placeholder="Ex: Gol G5 / Universal"></div>
+      <div class="form-group"><label>Fornecedor</label><input type="text" id="f-fornecedor" placeholder="Ex: Bosch, Nakata"></div>
+      <div class="form-group"><label>Localização</label><input type="text" id="f-local" placeholder="Ex: A-12 / Galpão 2"></div>
+      <div class="form-group"><label>Quantidade inicial *</label><input type="number" id="f-qty" min="0" placeholder="0"></div>
+      <div class="form-group"><label>Estoque mínimo</label><input type="number" id="f-min" min="0" placeholder="5"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('add')">Cancelar</button>
+      <button class="btn btn-primary" onclick="savePeca()">Salvar Peça</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MOVIMENTO -->
+<div class="overlay" id="modal-mov">
+  <div class="modal" style="width:400px">
+    <div class="modal-title">
+      <span id="mov-peca-nome">Movimentação</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal('mov')">✕</button>
+    </div>
+    <div class="mov-tipo">
+      <button class="mov-btn entry active" id="btn-entry" onclick="setTipo('entry')">↑ Entrada</button>
+      <button class="mov-btn exit" id="btn-exit" onclick="setTipo('exit')">↓ Saída</button>
+    </div>
+    <div class="form-group" style="margin-bottom:14px"><label>Quantidade</label><input type="number" id="mov-qty" min="1" value="1" style="width:100%"></div>
+    <div class="form-group"><label>Motivo / Observação</label><input type="text" id="mov-motivo" placeholder="Ex: NF 1234 / OS 567"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('mov')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveMovimento()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toasts"></div>
+
+<script>
+const STORAGE_KEY='autostock_pecas', HIST_KEY='autostock_hist';
+let pecas=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+let historico=JSON.parse(localStorage.getItem(HIST_KEY)||'[]');
+let editId=null, movId=null, movTipo='entry', relFiltrado=[];
+
+if(pecas.length===0){
+  pecas=[
+    {id:1,codigo:'BP-0421',nome:'Pastilha de freio dianteira',categoria:'Freios',veiculo:'Gol G5/G6',fornecedor:'Bosch',local:'A-03',qty:24,min:10},
+    {id:2,codigo:'FO-1100',nome:'Filtro de óleo',categoria:'Filtros',veiculo:'Universal',fornecedor:'Mann',local:'B-01',qty:8,min:15},
+    {id:3,codigo:'AM-3310',nome:'Amortecedor dianteiro',categoria:'Suspensão',veiculo:'Civic 2016-2021',fornecedor:'Nakata',local:'C-07',qty:4,min:4},
+    {id:4,codigo:'CO-2201',nome:'Correia dentada',categoria:'Motor',veiculo:'HB20 1.6',fornecedor:'Gates',local:'A-12',qty:12,min:6},
+    {id:5,codigo:'BA-5050',nome:'Bateria 60Ah',categoria:'Elétrica',veiculo:'Universal',fornecedor:'Moura',local:'D-01',qty:3,min:5},
+    {id:6,codigo:'DI-0088',nome:'Disco de freio dianteiro',categoria:'Freios',veiculo:'Onix 2020+',fornecedor:'Fremax',local:'A-05',qty:16,min:8},
+    {id:7,codigo:'VE-1402',nome:'Vela de ignição',categoria:'Motor',veiculo:'Universal',fornecedor:'NGK',local:'B-04',qty:48,min:20},
+    {id:8,codigo:'RC-0330',nome:'Rolamento de roda dianteiro',categoria:'Suspensão',veiculo:'Palio / Uno',fornecedor:'FAG',local:'C-02',qty:2,min:4},
+  ];
+  save();
+}
+
+function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(pecas));localStorage.setItem(HIST_KEY,JSON.stringify(historico));}
+function nextId(){return pecas.length?Math.max(...pecas.map(p=>p.id))+1:1;}
+
+function statusOf(p){
+  if(p.qty<=0||p.qty<p.min) return 'critical';
+  if(p.qty<=p.min*1.5) return 'low';
+  return 'ok';
+}
+
+function statusBadge(p){
+  const s=statusOf(p);
+  if(s==='critical') return '<span class="badge badge-critical">🔴 Crítico</span>';
+  if(s==='low') return '<span class="badge badge-low">🟡 Baixo</span>';
+  return '<span class="badge badge-ok">🟢 OK</span>';
+}
+
+function qtyDisplay(p){
+  const s=statusOf(p);
+  const pct=p.min>0?Math.min(100,Math.round((p.qty/(p.min*2))*100)):100;
+  const bc=s==='ok'?'bar-ok':s==='low'?'bar-low':'bar-critical';
+  return `<div class="qty-display"><span class="qty-num ${s}">${p.qty}</span><div class="bar-track"><div class="bar-fill ${bc}" style="width:${pct}%"></div></div></div>`;
+}
+
+function showView(name,el){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  if(el) el.classList.add('active');
+  if(name==='dashboard') renderDashboard();
+  if(name==='estoque') renderTable();
+  if(name==='historico') renderHistorico();
+  if(name==='relatorio'){
+    const hoje=new Date().toISOString().slice(0,10);
+    document.getElementById('rel-inicio').value=hoje.slice(0,8)+'01';
+    document.getElementById('rel-fim').value=hoje;
+    document.getElementById('rel-metrics').innerHTML='';
+    document.getElementById('rel-table-wrap').style.display='none';
+    document.getElementById('rel-empty').style.display='none';
+  }
+}
+
+function filtrarCategoria(cat){showView('estoque',null);document.getElementById('filter-cat').value=cat;renderTable();}
+
+function renderDashboard(){
+  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('pt-BR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  const total=pecas.length,critical=pecas.filter(p=>statusOf(p)==='critical').length,low=pecas.filter(p=>statusOf(p)==='low').length,totalQty=pecas.reduce((a,p)=>a+p.qty,0);
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric-card accent"><div class="metric-label">Total de Itens</div><div class="metric-value accent">${total}</div></div>
+    <div class="metric-card"><div class="metric-label">Unidades em Estoque</div><div class="metric-value">${totalQty}</div></div>
+    <div class="metric-card warn"><div class="metric-label">Estoque Baixo</div><div class="metric-value warn">${low}</div></div>
+    <div class="metric-card ${critical>0?'danger':''}"><div class="metric-label">Crítico / Zerado</div><div class="metric-value danger">${critical}</div></div>`;
+
+  const critPecas=pecas.filter(p=>statusOf(p)!=='ok');
+  const tbody=document.getElementById('critical-table');
+  if(critPecas.length===0){
+    tbody.innerHTML=`<tr><td colspan="7" style="padding:1.5rem;text-align:center;color:var(--success-text);background:var(--success-light);font-weight:600">✅ Nenhum item em estado crítico ou baixo</td></tr>`;
+  } else {
+    tbody.innerHTML=critPecas.map(p=>{
+      const s=statusOf(p);
+      return `<tr class="${s==='critical'?'critical-row':'low-row'}">
+        <td>${statusBadge(p)}</td>
+        <td><span class="code">${p.codigo}</span></td>
+        <td style="font-weight:700;color:var(--text);font-size:14px">${p.nome}</td>
+        <td><span class="badge-cat badge">${p.categoria}</span></td>
+        <td><span style="font-family:'Space Mono';font-size:18px;font-weight:700;color:${s==='critical'?'var(--danger-text)':'var(--warn-text)'}">${p.qty}</span></td>
+        <td style="font-family:'Space Mono';font-size:15px;font-weight:600;color:var(--muted)">${p.min}</td>
+        <td><button class="btn btn-primary btn-sm" onclick="openMov(${p.id})">+ Entrada</button></td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+function renderTable(){
+  const q=(document.getElementById('search')?.value||'').toLowerCase();
+  const cat=document.getElementById('filter-cat')?.value||'';
+  const status=document.getElementById('filter-status')?.value||'';
+  let filtered=pecas.filter(p=>{
+    const mQ=!q||p.nome.toLowerCase().includes(q)||p.codigo.toLowerCase().includes(q)||(p.veiculo||'').toLowerCase().includes(q);
+    return mQ&&(!cat||p.categoria===cat)&&(!status||statusOf(p)===status);
+  });
+  document.getElementById('count-label').textContent=`${filtered.length} de ${pecas.length} itens`;
+  const tbody=document.getElementById('stock-table');
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="9" class="empty">Nenhuma peça encontrada</td></tr>`;return;}
+  tbody.innerHTML=filtered.map(p=>`
+    <tr>
+      <td><span class="code">${p.codigo}</span></td>
+      <td style="font-weight:600;color:var(--text)">${p.nome}</td>
+      <td><span class="badge-cat badge">${p.categoria}</span></td>
+      <td style="font-size:13px;color:var(--muted)">${p.veiculo||'—'}</td>
+      <td><span class="loc">${p.local||'—'}</span></td>
+      <td style="font-size:13px;color:var(--muted)">${p.fornecedor||'—'}</td>
+      <td>${qtyDisplay(p)}</td>
+      <td>${statusBadge(p)}</td>
+      <td><div class="action-btns">
+        <button class="btn btn-ghost btn-sm" onclick="openMov(${p.id})" title="Movimentar">↕</button>
+        <button class="btn btn-ghost btn-sm" onclick="editPeca(${p.id})" title="Editar">✎</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePeca(${p.id})" title="Remover">✕</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function renderHistorico(){
+  const el=document.getElementById('historico-list');
+  if(!historico.length){el.innerHTML=`<div class="empty"><div class="empty-icon">↺</div>Nenhuma movimentação registrada ainda</div>`;return;}
+  el.innerHTML=[...historico].reverse().map(h=>`
+    <div class="hist-item">
+      <div class="hist-dot ${h.tipo}"></div>
+      <div class="hist-info"><div class="hist-main">${h.nome} <span class="code">${h.codigo}</span></div><div class="hist-sub">${h.motivo||'Sem observação'} · ${h.data}</div></div>
+      <div class="hist-qty ${h.tipo}">${h.tipo==='entry'?'+':'−'}${h.qty}</div>
+    </div>`).join('');
+}
+
+function openModal(name){
+  editId=null;
+  document.getElementById('modal-add-title').textContent='Nova Peça';
+  ['codigo','nome','veiculo','fornecedor','local'].forEach(f=>document.getElementById('f-'+f).value='');
+  document.getElementById('f-qty').value='';document.getElementById('f-min').value='';
+  document.getElementById('modal-add').classList.add('show');
+}
+
+function editPeca(id){
+  const p=pecas.find(x=>x.id===id);if(!p)return;
+  editId=id;document.getElementById('modal-add-title').textContent='Editar Peça';
+  document.getElementById('f-codigo').value=p.codigo;document.getElementById('f-nome').value=p.nome;
+  document.getElementById('f-categoria').value=p.categoria;document.getElementById('f-veiculo').value=p.veiculo||'';
+  document.getElementById('f-fornecedor').value=p.fornecedor||'';document.getElementById('f-local').value=p.local||'';
+  document.getElementById('f-qty').value=p.qty;document.getElementById('f-min').value=p.min;
+  document.getElementById('modal-add').classList.add('show');
+}
+
+function savePeca(){
+  const codigo=document.getElementById('f-codigo').value.trim();
+  const nome=document.getElementById('f-nome').value.trim();
+  const qty=parseInt(document.getElementById('f-qty').value)||0;
+  if(!codigo||!nome){toast('Preencha código e nome da peça','error');return;}
+  const data={codigo,nome,categoria:document.getElementById('f-categoria').value,veiculo:document.getElementById('f-veiculo').value.trim(),fornecedor:document.getElementById('f-fornecedor').value.trim(),local:document.getElementById('f-local').value.trim(),qty,min:parseInt(document.getElementById('f-min').value)||0};
+  if(editId){const i=pecas.findIndex(p=>p.id===editId);pecas[i]={...pecas[i],...data};toast('Peça atualizada!','success');}
+  else{if(pecas.find(p=>p.codigo===codigo)){toast('Código já cadastrado!','error');return;}pecas.push({id:nextId(),...data});toast('Peça cadastrada!','success');}
+  save();closeModal('add');renderTable();renderDashboard();
+}
+
+function deletePeca(id){
+  if(!confirm('Remover esta peça do estoque?'))return;
+  pecas=pecas.filter(p=>p.id!==id);save();renderTable();renderDashboard();toast('Peça removida','info');
+}
+
+function openMov(id){
+  movId=id;const p=pecas.find(x=>x.id===id);
+  document.getElementById('mov-peca-nome').textContent=p.nome;
+  document.getElementById('mov-qty').value=1;document.getElementById('mov-motivo').value='';
+  setTipo('entry');document.getElementById('modal-mov').classList.add('show');
+}
+
+function setTipo(tipo){
+  movTipo=tipo;
+  document.getElementById('btn-entry').classList.toggle('active',tipo==='entry');
+  document.getElementById('btn-exit').classList.toggle('active',tipo==='exit');
+}
+
+function saveMovimento(){
+  const qty=parseInt(document.getElementById('mov-qty').value)||0;
+  if(qty<=0){toast('Informe uma quantidade válida','error');return;}
+  const p=pecas.find(x=>x.id===movId);
+  if(movTipo==='exit'&&qty>p.qty){toast('Quantidade insuficiente em estoque!','error');return;}
+  if(movTipo==='entry') p.qty+=qty; else p.qty-=qty;
+  historico.push({id:Date.now(),tipo:movTipo,nome:p.nome,codigo:p.codigo,qty,motivo:document.getElementById('mov-motivo').value.trim(),data:new Date().toLocaleString('pt-BR')});
+  save();closeModal('mov');
+  toast(movTipo==='entry'?`+${qty} unidades adicionadas`:`−${qty} unidades retiradas`,movTipo==='entry'?'success':'info');
+  renderTable();renderDashboard();
+}
+
+function closeModal(name){document.getElementById('modal-'+name).classList.remove('show');}
+
+function limparDados(){
+  if(!confirm('⚠ Isso vai apagar TODAS as peças e o histórico. Tem certeza?'))return;
+  if(!confirm('Confirma mesmo? Esta ação não pode ser desfeita.'))return;
+  pecas=[];historico=[];save();renderDashboard();renderTable();toast('Todos os dados foram apagados','info');
+}
+
+function gerarRelatorio(){
+  const inicio=document.getElementById('rel-inicio').value,fim=document.getElementById('rel-fim').value,tipo=document.getElementById('rel-tipo').value;
+  if(!inicio||!fim){toast('Selecione as datas','error');return;}
+  const dtI=new Date(inicio+'T00:00:00'),dtF=new Date(fim+'T23:59:59');
+  relFiltrado=historico.filter(h=>{
+    const p=h.data.split(/[/, :]/);
+    const dt=new Date(p[2],p[1]-1,p[0],p[3]||0,p[4]||0);
+    return dt>=dtI&&dt<=dtF&&(!tipo||h.tipo===tipo);
+  });
+  const e=relFiltrado.filter(h=>h.tipo==='entry'),s=relFiltrado.filter(h=>h.tipo==='exit');
+  const tE=e.reduce((a,h)=>a+h.qty,0),tS=s.reduce((a,h)=>a+h.qty,0);
+  document.getElementById('rel-metrics').innerHTML=`
+    <div class="metric-card"><div class="metric-label">Movimentações</div><div class="metric-value">${relFiltrado.length}</div></div>
+    <div class="metric-card success"><div class="metric-label">Total Entradas</div><div class="metric-value success">+${tE}</div></div>
+    <div class="metric-card danger"><div class="metric-label">Total Saídas</div><div class="metric-value danger">−${tS}</div></div>
+    <div class="metric-card ${tE-tS>=0?'success':'danger'}"><div class="metric-label">Saldo</div><div class="metric-value ${tE-tS>=0?'success':'danger'}">${tE-tS>=0?'+':''}${tE-tS}</div></div>`;
+  const wrap=document.getElementById('rel-table-wrap'),empty=document.getElementById('rel-empty');
+  if(!relFiltrado.length){wrap.style.display='none';empty.style.display='block';return;}
+  empty.style.display='none';wrap.style.display='block';
+  document.getElementById('rel-count').textContent=`${relFiltrado.length} registros`;
+  document.getElementById('rel-tbody').innerHTML=[...relFiltrado].reverse().map(h=>`
+    <tr>
+      <td style="font-size:13px;color:var(--muted)">${h.data}</td>
+      <td><span class="badge ${h.tipo==='entry'?'badge-ok':'badge-critical'}">${h.tipo==='entry'?'↑ Entrada':'↓ Saída'}</span></td>
+      <td style="font-weight:600;color:var(--text)">${h.nome}</td>
+      <td><span class="code">${h.codigo}</span></td>
+      <td style="font-family:'Space Mono';font-weight:700;color:${h.tipo==='entry'?'var(--success-text)':'var(--danger-text)'}">${h.tipo==='entry'?'+':'−'}${h.qty}</td>
+      <td style="font-size:13px;color:var(--muted)">${h.motivo||'—'}</td>
+    </tr>`).join('');
+}
+
+function exportarRelatorioCSV(){
+  if(!relFiltrado.length){toast('Gere o relatório primeiro','error');return;}
+  const h=['Data','Tipo','Peça','Código','Quantidade','Motivo'];
+  const r=relFiltrado.map(h=>[h.data,h.tipo==='entry'?'Entrada':'Saída',h.nome,h.codigo,(h.tipo==='entry'?'+':'-')+h.qty,h.motivo||'']);
+  const csv=[h,...r].map(r=>r.join(';')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`relatorio_${document.getElementById('rel-inicio').value}_${document.getElementById('rel-fim').value}.csv`;a.click();
+  toast('Relatório exportado!','success');
+}
+
+function exportCSV(){
+  const h=['Código','Nome','Categoria','Veículo','Fornecedor','Local','Quantidade','Estoque Mínimo','Status'];
+  const r=pecas.map(p=>[p.codigo,p.nome,p.categoria,p.veiculo||'',p.fornecedor||'',p.local||'',p.qty,p.min,statusOf(p)==='ok'?'OK':statusOf(p)==='low'?'Baixo':'Crítico']);
+  const csv=[h,...r].map(r=>r.join(';')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=`autostock_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+  toast('CSV exportado!','success');
+}
+
+function toast(msg,type='info'){
+  const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=msg;
+  document.getElementById('toasts').appendChild(el);setTimeout(()=>el.remove(),3000);
+}
+
+renderDashboard();
+</script>
+</body>
+</html>
